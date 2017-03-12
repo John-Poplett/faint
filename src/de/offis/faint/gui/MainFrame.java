@@ -3,7 +3,7 @@
  * |                                                                         |
  *    faint - The Face Annotation Interface
  * |  Copyright (C) 2007  Malte Mathiszig                                    |
- * 
+ *
  * |  This program is free software: you can redistribute it and/or modify   |
  *    it under the terms of the GNU General Public License as published by
  * |  the Free Software Foundation, either version 3 of the License, or      |
@@ -13,7 +13,7 @@
  * |  but WITHOUT ANY WARRANTY; without even the implied warranty of         |
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * |  GNU General Public License for more details.                           |
- * 
+ *
  * |  You should have received a copy of the GNU General Public License      |
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * |                                                                         |
@@ -25,12 +25,14 @@ package de.offis.faint.gui;
 import java.awt.Component;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
 
 import javax.swing.JTabbedPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import de.offis.faint.global.Constants;
+import de.offis.faint.gui.events.EventOpenFolder;
 import de.offis.faint.gui.events.EventShowTab;
 import de.offis.faint.gui.events.EventShutdownMainFrame;
 import de.offis.faint.gui.facedb.FaceDBTab;
@@ -85,6 +87,11 @@ public class MainFrame extends NiceJFrame {
 		// Make GUI visible
 		this.setSizeAndCenter(800, 600);
 		this.setVisible(true);
+		
+		// FIXME
+		File folder = new File("/Users/vcdt34/Downloads/lfw/George_W_Bush");
+		this.eventDispatcher.dispatchEvent(new EventOpenFolder(folder));
+		// FIXME
 	}
 
 	/**
@@ -123,8 +130,8 @@ public class MainFrame extends NiceJFrame {
 		}
 	}
 	
-	class Listener extends WindowAdapter implements ChangeListener{
-
+	class Listener extends WindowAdapter implements ChangeListener {
+		
 		/* (non-Javadoc)
 		 * @see javax.swing.event.ChangeListener#stateChanged(javax.swing.event.ChangeEvent)
 		 */

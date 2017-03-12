@@ -16,9 +16,11 @@ public class FDDBExporter extends SwingWorker<String, String> {
 	
 	protected String[] files;
 	protected int filesProcessed;
+	protected String dbName;
 	FaceDatabase db;
 	
-	public FDDBExporter(){
+	public FDDBExporter(String dbName){
+		this.dbName = dbName;
 		db = MainController.getInstance().getFaceDB();
 		files = db.getKnownFiles();
 		java.util.Arrays.sort(files);
@@ -34,7 +36,6 @@ public class FDDBExporter extends SwingWorker<String, String> {
 						    /* identity    */ Paths.get(""),
 						    /* accumulator */ Path::resolve,
 						    /* combiner    */ Path::resolve);
-						    //System.out.println(dest);
 						    return dest.toString();					
 				}
 			}
@@ -49,8 +50,21 @@ public class FDDBExporter extends SwingWorker<String, String> {
 			// String comment = "";
 			Region[] regions = db.getRegionsForImage(file);
 			if(regions != null && regions.length > 0) {
-				printStream.println(getRelativePath(file, "lfw"));
+				printStream.println(getRelativePath(file, dbName));
 				printStream.format("%d\n", regions.length);
+				for(Region region: regions) {
+					/*
+					 * Convert bounding box to an ellipse.
+					 */
+					int width = region.getWidth();
+					int height = region.getHeight();
+					int sc = 1;
+					double major_axis_radius = width / 2.0;
+					double minor_axis_radius = height / 2.0;
+					printStream.format("%.1f %.1f %.1f %.1f %.1f %d%n",
+							major_axis_radius, minor_axis_radius,
+							region.getAngle(), region.getX(), region.getY(), sc);
+				}
 			}
 		}
 	}
@@ -62,7 +76,7 @@ public class FDDBExporter extends SwingWorker<String, String> {
 	}
 
 	public static void main(String[] args) {
-		FDDBExporter exporter = new FDDBExporter();
+		FDDBExporter exporter = new FDDBExporter("lfw");
 		exporter.export(System.out);
 		System.exit(0);
 	}

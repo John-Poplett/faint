@@ -38,6 +38,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.net.URL;
 
 import javax.swing.JPanel;
@@ -60,7 +61,7 @@ import de.offis.faint.model.Region;
  * @author maltech
  *
  */
-public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
+public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable, Serializable {
 
 	private static final long serialVersionUID = -9011612824955017486L;
 
@@ -73,16 +74,30 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 			"haarcascade_frontalface_alt2.xml",
 			"haarcascade_profileface.xml" };
 
+	// @serial
 	private String currentCascadeFile = CASCADES[0];
 
+	// @serial
 	private float scaleFactor = 1.1f;
 
 	private transient OpenCVSettingsPanel settingsPanel = null;
+
+	// @serial
 	private int scanWindowSize;
-	
+
 	transient CvMemStorage storage = null;
 
 	transient CvHaarClassifierCascade classifier = null;
+
+	private boolean isValidState() {
+		return classifier != null && classifier instanceof CvHaarClassifierCascade;
+	}
+
+	private void validateState() {
+		if(!isValidState()) {
+			throw new IllegalArgumentException("classifier field not initialized properly");
+		}
+	}
 
 	/**
 	 * Constructor.
@@ -112,14 +127,15 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 
 		// Load native libraries
 		loadLibraries(dataFolder);
+        validateState();
 
 	}
-	
+
 	private void loadLibraries(File dataFolder) {
 		storage = CvMemStorage.create();
-		
+
 		final String classifierName = getCascade();
-		
+
 		 // Preload the opencv_objdetect module to work around a known bug.
         Loader.load(opencv_objdetect.class);
 
@@ -130,7 +146,7 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
             System.err.println("Error loading classifier file \"" + classifierName + "\".");
             System.exit(1);
         }
-        
+
 	}
 
 
@@ -138,6 +154,17 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 	 * @see de.offis.faint.plugins.detection.IDetectionPlugin#detectFaces(java.lang.String)
 	 */
 	public Region[] detectFaces(String file, int scanWindowSize) {
+
+		/*
+		 * FIXME - workaround when object readObject is not called on start-up and
+		 * the class object is not fully deserialized. Patch is here until the real
+		 * issue is finally debugged.
+		 */
+		if(!isValidState()) {
+			File dataFolder = new File(MainController.getInstance().getDataDir().getAbsoluteFile() + File.separator + SUBFOLDER);
+			loadLibraries(dataFolder);
+		}
+		validateState();
 		this.scanWindowSize = scanWindowSize;
 		IplImage image = cvLoadImage(file);
 		final int width = image.width();
@@ -150,11 +177,10 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 		Region[] regions = new Region[total];
 		for (int i = 0; i < total; i++) {
 			CvRect r = new CvRect(cvGetSeqElem(faces, i));
-			int x = r.x(), y = r.y(), w = r.width(), h = r.height();
-			//int x = r.x() - r.width(), y = r.y() + r.height(), w = r.width(), h = r.height();			
+			final int w = r.width(), h = r.height();
+			final int x = r.x() + w/2, y = r.y() + h/2;
 			regions[i] = new Region(x, y, w, h, 0.0, file);
 			r.close();
-			// cvRectangle(image, cvPoint(x, y), cvPoint(x + w, y + h), CvScalar.RED, 1, CV_AA, 0);
 		}
 		cvClearMemStorage(storage);
 		return regions;
@@ -199,7 +225,7 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 	 * @see de.offis.faint.plugins.IPlugin#getRequirementNotes()
 	 */
 	public String getDescription() {
-		return "<p>The OpenCV Haarclassifier Detection makes use of native libraries which are currently only available for Microsoft Windows. However, the source code of these libraries is platform independent, so if you would like to compile them on your favourite operating system please contact me.</p>";
+		return "<p>The OpenCV Haarclassifier Detection uses javacv.</p>";
 	}
 
 	public String getCopyrightNotes() {
@@ -223,7 +249,7 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 	}
 
 	/**
-	 * Method that reloads the native libraries on deserialization.
+	 * Method that reinitializes the Haar clsssifier on deserialization.
 	 *
 	 * @param in
 	 * @throws IOException
@@ -231,8 +257,9 @@ public class OpenCVDetection implements IDetectionPlugin, ISwingCustomizable {
 	 */
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException{
 		in.defaultReadObject();
-		// FIXME File dataFolder = new File(MainController.getInstance().getDataDir().getAbsoluteFile() + File.separator + SUBFOLDER);
-		// FIXME loadLibraries(dataFolder);
+		File dataFolder = new File(MainController.getInstance().getDataDir().getAbsoluteFile() + File.separator + SUBFOLDER);
+		loadLibraries(dataFolder);
+        validateState();
 	}
 
 //	/*
